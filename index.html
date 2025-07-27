@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StreamFlix - Your Entertainment Hub</title>
+    <title>PikuFlix - Your Entertainment Hub</title>
     <style>
       
 * {
@@ -404,7 +404,7 @@ button:focus {
 
         .card-image {
             width: 100%;
-            height: 380px;
+            height: 120px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             display: flex;
             align-items: center;
@@ -884,7 +884,7 @@ button:focus {
     <header class="header" id="header">
         <nav class="nav">
             <div class="nav-top">
-                <div class="logo">StreamFlix</div>
+                <div class="logo">PikuFlix</div>
                 <div class="nav-links">
                     <a href="#" class="nav-link active" data-category="trending">Trending</a>
                     <a href="#" class="nav-link" data-category="movies">Movies</a>
@@ -1631,10 +1631,10 @@ movieDatabase.push(
         media_type: "movie"
     }
 );
-        
+        // Content Loading Functions
         async function loadTrendingContent() {
             showLoading();
-            
+            // Use sample trending content
             currentContent = [...movieDatabase].sort(() => Math.random() - 0.5).slice(0, 16);
             displayContent(currentContent);
             hideLoading();
@@ -1642,7 +1642,7 @@ movieDatabase.push(
 
         async function loadPopularMovies() {
             showLoading();
-            
+            // Filter movies from database
             currentContent = movieDatabase.filter(item => item.media_type === 'movie');
             displayContent(currentContent);
             hideLoading();
@@ -1650,7 +1650,7 @@ movieDatabase.push(
 
         async function loadPopularTV() {
             showLoading();
-            
+            // Filter TV shows from database
             currentContent = movieDatabase.filter(item => item.media_type === 'tv');
             displayContent(currentContent);
             hideLoading();
@@ -1658,7 +1658,7 @@ movieDatabase.push(
 
         async function loadTopRated() {
             showLoading();
-            
+            // Use highest rated content
             currentContent = [...movieDatabase].sort((a, b) => b.vote_average - a.vote_average).slice(0, 15);
             displayContent(currentContent);
             hideLoading();
@@ -1674,7 +1674,7 @@ movieDatabase.push(
             isSearching = true;
             showLoading();
             
-            
+            // Search through movie database
             const searchResults = movieDatabase.filter(item => {
                 const title = (item.title || item.name || '').toLowerCase();
                 const overview = (item.overview || '').toLowerCase();
@@ -1686,7 +1686,7 @@ movieDatabase.push(
             hideLoading();
         }
 
-        
+        // Display Functions
         function displayContent(items) {
             if (!items || items.length === 0) {
                 contentGrid.innerHTML = `
