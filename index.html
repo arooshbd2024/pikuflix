@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PikuFlix - Your Entertainment Hub</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-      
+        
 * {
   -webkit-tap-highlight-color: transparent;
 }
@@ -1018,10 +1019,51 @@ input:checked + .slider.round:before {
 #historyList {
   margin-top: 15px;
 }
+
+   .social-buttons {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      gap: 15px;
+      z-index: 9999;
+    }
+
+    .social-buttons a {
+      text-decoration: none;
+    }
+
+    .social-buttons i {
+      font-size: 32px;
+      color: #5865F2;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .social-buttons a.instagram i {
+      color: #E1306C; /* Instagram pink */
+    }
+
+    .social-buttons i:hover {
+      transform: scale(1.1);
+    }
     </style>
 </head>
 
 <body>
+<div class="social-buttons">
+  
+    <a href="https://discord.gg/zMwSVESyFA" target="_blank" class="discord">
+      <i class="fab fa-discord"></i>
+    </a>
+
+ 
+    <a href="https://instagram.com/kavyant1" target="_blank" class="instagram">
+      <i class="fab fa-instagram"></i>
+    </a>
+  </div>
+
+
     <!-- Swipe Settings Button -->
 <div class="settings-swipe-area"></div>
 <div class="settings-button" id="settingsBtn">
@@ -1113,6 +1155,9 @@ input:checked + .slider.round:before {
                 <button class="close-btn" onclick="closeModal()">&times;</button>
             </div>
             <div class="video-container" id="videoContainer">
+                <div style="text-align: right; margin-top: 10px;">
+  <button id="nextEpisodeBtn" style="padding: 8px 16px; font-size: 16px;">⏭️ Next Episode</button>
+</div>
                 <div class="loading">
                     <div class="spinner"></div>
                     Loading video...
@@ -1716,7 +1761,7 @@ document.addEventListener('click', function(e) {
                 media_type: "tv"
             },
             {
-                id: 1398,
+                id: 1405,
                 name: "Dexter",
                 overview: "He's smart, he's good looking, and he's got a great sense of humor. He's Dexter Morgan, everyone's favorite serial killer.",
                 first_air_date: "2006-10-01",
@@ -2223,6 +2268,32 @@ movieDatabase.push(
         }
     });
 })();
+
+document.getElementById("nextEpisodeBtn").addEventListener("click", () => {
+  // Try to load the next episode
+  currentEpisode++;
+
+  // Check if next episode exists in the episode list
+  const nextEpisodeExists = episodes.find(ep => ep.season_number === currentSeason && ep.episode_number === currentEpisode);
+
+  if (nextEpisodeExists) {
+    loadVideo(currentShowId, currentSeason, currentEpisode);
+  } else {
+    // Try to move to the next season
+    const nextSeasonNumber = currentSeason + 1;
+    const firstEpisodeNextSeason = episodes.find(ep => ep.season_number === nextSeasonNumber && ep.episode_number === 1);
+
+    if (firstEpisodeNextSeason) {
+      currentSeason = nextSeasonNumber;
+      currentEpisode = 1;
+      loadVideo(currentShowId, currentSeason, currentEpisode);
+    } else {
+      alert("No more episodes available.");
+      currentEpisode--; // revert since we added blindly above
+    }
+  }
+});
+
     </script>
 </body>
 </html>
