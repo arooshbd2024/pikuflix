@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -404,7 +404,7 @@ button:focus {
 
         .card-image {
             width: 100%;
-            height: 120px;
+            height: 180px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             display: flex;
             align-items: center;
@@ -878,9 +878,182 @@ button:focus {
         ::-webkit-scrollbar-thumb:hover {
             background: linear-gradient(45deg, #ff6b6b, #ffd700);
         }
+        
+   /* Invisible Swipe Area (left edge) */
+.settings-swipe-area {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 100vh;
+  z-index: 999;
+}
+
+/* Settings Button */
+.settings-button {
+  position: fixed;
+  top: 50%;
+  left: -60px;
+  transform: translateY(-50%);
+  width: 50px;
+  height: 50px;
+  background: #e50914;
+  color: white;
+  font-size: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: left 0.3s ease;
+  z-index: 1000;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+.settings-button.visible {
+  left: 10px;
+}
+.settings-panel {
+  position: fixed;
+  bottom: -100%;
+  left: 0;
+  right: 0;
+  background: #1c1c1c;
+  color: white;
+  padding: 20px;
+  border-radius: 20px 20px 0 0;
+  transition: bottom 0.3s ease;
+  z-index: 3000;
+}
+
+.settings-panel.visible {
+  bottom: 0;
+}
+
+.panel-header {
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 15px;
+}
+
+.panel-options li {
+  list-style: none;
+  margin-bottom: 12px;
+  font-size: 16px;
+}
+
+button {
+  background: #444;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.stream-settings-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #111;
+  color: white;
+  padding: 20px;
+  display: none;
+  z-index: 4000;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider.round {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0;
+  right: 0; bottom: 0;
+  background-color: #ccc;
+  transition: 0.4s;
+  border-radius: 22px;
+}
+
+.slider.round:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider.round {
+  background-color: #2196F3;
+}
+
+input:checked + .slider.round:before {
+  transform: translateX(18px);
+}
+.history-list ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.history-list li {
+  padding: 5px 0;
+  border-bottom: 1px solid #333;
+  font-size: 15px;
+}
+#historyList {
+  margin-top: 15px;
+}
     </style>
 </head>
+
 <body>
+    <!-- Swipe Settings Button -->
+<div class="settings-swipe-area"></div>
+<div class="settings-button" id="settingsBtn">
+  ⚙️
+</div>
+<!-- Settings Panel -->
+<div id="settingsPanel" class="settings-panel">
+  <div class="panel-header">Settings</div>
+  <ul class="panel-options">
+    <li>Account: Guest <span id="guestId"></span></li>
+    <li><button id="openStreamSettings">Stream Settings</button></li>
+    <li>
+      Show History: 
+      <label class="switch">
+        <input type="checkbox" id="historyToggle">
+        <span class="slider round"></span>
+      </label>
+    </li>
+  </ul>
+</div>
+
+<!-- Stream Settings Overlay -->
+<div id="streamSettingsPanel" class="stream-settings-overlay">
+  <div class="panel-header">
+    Stream Settings
+    <button id="closeStreamSettings" style="float: right;">✖</button>
+  </div>
+  <div class="panel-body">
+    <p>(Placeholder for stream settings like quality, subtitles, etc.)</p>
+  </div>
+</div>
+    
     <header class="header" id="header">
         <nav class="nav">
             <div class="nav-top">
@@ -906,7 +1079,13 @@ button:focus {
                 Start Watching
             </button>
         </div>
+        
+        
     </section>
+    <div id="historyList" class="history-list" style="display: none; margin-top: 20px;">
+  <h3>Watch History</h3>
+  <ul id="historyItems"></ul>
+</div>
 
     <main class="content" id="content">
         <h2 class="section-title">Popular Content</h2>
@@ -941,8 +1120,146 @@ button:focus {
             </div>
         </div>
     </div>
+    
 
     <script>
+        
+   
+  const historyToggle = document.getElementById('historyToggle');
+  const historyList = document.getElementById('historyList');
+  const historyItems = document.getElementById('historyItems');
+
+  // Load history from localStorage
+  function loadHistory() {
+    const history = JSON.parse(localStorage.getItem('watchHistory')) || [];
+    historyItems.innerHTML = "";
+
+    if (history.length === 0) {
+      historyItems.innerHTML = "<li>No history available.</li>";
+      return;
+    }
+
+    history.forEach(item => {
+      const li = document.createElement('li');
+      li.textContent = `${item.title} - ${item.time}`;
+      historyItems.appendChild(li);
+    });
+  }
+
+  // Save to history
+  function saveToHistory(title) {
+    const now = new Date();
+    const formattedTime = now.toLocaleString();
+    const history = JSON.parse(localStorage.getItem('watchHistory')) || [];
+
+    history.unshift({ title, time: formattedTime });
+
+    // Optional: Limit history size
+    if (history.length > 50) history.pop();
+
+    localStorage.setItem('watchHistory', JSON.stringify(history));
+
+    // Update history view if toggle is ON
+    if (historyToggle.checked) {
+      loadHistory();
+    }
+  }
+
+  // Toggle show/hide history section
+  historyToggle.addEventListener('change', () => {
+    if (historyToggle.checked) {
+      historyList.style.display = 'block';
+      loadHistory();
+    } else {
+      historyList.style.display = 'none';
+    }
+  });
+
+  // Example: simulate watch event (replace this with your real player logic)
+  document.querySelectorAll('.watchable').forEach(item => {
+    item.addEventListener('click', () => {
+      const title = item.dataset.title;
+      saveToHistory(title);
+    });
+  });
+
+     
+  let startX = 0;
+  let isSwiping = false;
+  const settingsBtn = document.getElementById('settingsBtn');
+  const swipeArea = document.querySelector('.settings-swipe-area');
+
+  function handleTouchStart(e) {
+    startX = e.touches ? e.touches[0].clientX : e.clientX;
+    isSwiping = true;
+  }
+
+  function handleTouchMove(e) {
+    if (!isSwiping) return;
+    const currentX = e.touches ? e.touches[0].clientX : e.clientX;
+    const diffX = currentX - startX;
+
+    if (diffX > 40) {
+      settingsBtn.classList.add('visible');
+      isSwiping = false;
+    } else if (diffX < -40) {
+      settingsBtn.classList.remove('visible');
+      isSwiping = false;
+    }
+  }
+
+  // Show on swipe from left
+  swipeArea.addEventListener('touchstart', handleTouchStart);
+  swipeArea.addEventListener('touchmove', handleTouchMove);
+  swipeArea.addEventListener('mousedown', handleTouchStart);
+  document.addEventListener('mousemove', handleTouchMove);
+
+  // Hide when clicking anywhere else
+  document.addEventListener('click', (e) => {
+    if (!settingsBtn.contains(e.target)) {
+      settingsBtn.classList.remove('visible');
+    }
+  });
+
+  // Optional: Settings action
+  settingsBtn.addEventListener('click', (e) => {
+    e.stopPropagation(); // Prevent hiding on its own click
+    alert("Open settings panel here");
+  });
+
+  const settingsPanel = document.getElementById('settingsPanel');
+  const streamPanel = document.getElementById('streamSettingsPanel');
+  const guestId = Math.floor(Math.random() * (999999 - 293802 + 1)) + 293802;
+  document.getElementById('guestId').textContent = guestId;
+
+  // Open settings panel from settings button
+  settingsBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    settingsPanel.classList.add('visible');
+  });
+
+  // Close settings panel when tapping elsewhere
+  document.addEventListener('click', (e) => {
+    if (!settingsPanel.contains(e.target) && !settingsBtn.contains(e.target)) {
+      settingsPanel.classList.remove('visible');
+      streamPanel.style.display = 'none';
+    }
+  });
+
+  // Stream settings button
+  document.getElementById('openStreamSettings').addEventListener('click', () => {
+    streamPanel.style.display = 'block';
+  });
+
+  document.getElementById('closeStreamSettings').addEventListener('click', () => {
+    streamPanel.style.display = 'none';
+  });
+
+  // Show history toggle (default is off)
+  document.getElementById('historyToggle').checked = false;
+
+
+
         // Configuration
         const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
         const TMDB_IMAGE_BASE = 'https://image.tmdb.org/t/p/w500';
@@ -1031,7 +1348,13 @@ button:focus {
                 }
             });
         }
-
+document.addEventListener('click', function(e) {
+    let target = e.target.closest('a');
+    if (target && target.target === '_blank' && /ads|redirect/.test(target.href)) {
+        e.preventDefault();
+        console.log('Blocked a tab-opening ad link:', target.href);
+    }
+}, true);
         // Extended movie and TV database
         const movieDatabase = [
             // Action Movies
@@ -1830,7 +2153,76 @@ movieDatabase.push(
         console.log('🎬 StreamFlix App Loaded - Enhanced with 50+ movies and TV shows!');
         console.log('🔍 Search functionality works with expanded content database');
         console.log('📱 Search bar now positioned below StreamFlix logo');
-        
+        // ==UserScript==
+// @name         Block Tab Opening Ads
+// @namespace    http://tampermonkey.net/
+// @version      1.0
+// @description  Block annoying new tab popups and redirects
+// @author       ChatGPT
+// @match        *://*/*
+// @grant        none
+// @run-at       document-start
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Block all window.open attempts
+    window.open = function() {
+        console.warn('Blocked window.open attempt');
+        return null;
+    };
+
+    // Also block links that try to open in new tabs
+    document.addEventListener('click', function(e) {
+        let link = e.target.closest('a');
+        if (link && link.target === '_blank') {
+            const href = link.href.toLowerCase();
+            if (/ads|redirect|click|pop|doubleclick|exit/.test(href)) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.warn('Blocked suspicious link:', href);
+            }
+        }
+    }, true);
+
+    // Watch for fake "video click" triggers (common on pirated/streaming sites)
+    document.addEventListener('mousedown', function(e) {
+        e.stopImmediatePropagation();
+    }, true);
+
+    // Stop window.open inside setTimeout or click handlers
+    const originalSetTimeout = window.setTimeout;
+    window.setTimeout = function(callback, delay) {
+        if (typeof callback === 'function') {
+            const wrapped = function() {
+                try {
+                    const before = window.open;
+                    window.open = function() {
+                        console.warn('Blocked timed window.open');
+                        return null;
+                    };
+                    callback();
+                    window.open = before;
+                } catch (err) {
+                    console.warn('Error in blocked setTimeout callback:', err);
+                }
+            };
+            return originalSetTimeout(wrapped, delay);
+        }
+        return originalSetTimeout(callback, delay);
+    };
+
+    // Prevent known redirect scripts
+    Object.defineProperty(window, 'open', {
+        configurable: false,
+        writable: false,
+        value: function() {
+            console.warn('Blocked all forced open() calls');
+            return null;
+        }
+    });
+})();
     </script>
 </body>
 </html>
