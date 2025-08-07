@@ -1704,544 +1704,534 @@
         </div>
     </div>
 
-    <script>
-        // Get elements
-        const movieDbTag = document.querySelector('MovieDatabase');
-        const movieDatabase = JSON.parse(movieDbTag.textContent);
+<script>
+// Global variables
+let movieDatabase = [];
+let currentVideo = null;
+let userInteractions = JSON.parse(localStorage.getItem('userInteractions')) || {};
+let watchHistory = JSON.parse(localStorage.getItem('watchHistory')) || [];
+let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+let watchLater = JSON.parse(localStorage.getItem('watchLater')) || [];
+
+// DOM elements
+const videoPlayer = document.getElementById('videoPlayer');
+const videoTitle = document.getElementById('videoTitle');
+const releaseDate = document.getElementById('releaseDate');
+const rating = document.getElementById('rating');
+const viewCount = document.getElementById('viewCount');
+const descriptionContent = document.getElementById('descriptionContent');
+const favoriteBtn = document.getElementById('favoriteBtn');
+const watchLaterBtn = document.getElementById('watchLaterBtn');
+const shareBtn = document.getElementById('shareBtn');
+const expandBtn = document.getElementById('expandBtn');
+const descriptionBox = document.getElementById('descriptionBox');
+const relatedVideos = document.getElementById('relatedVideos');
+const toast = document.getElementById('toast');
+const searchInput = document.getElementById('searchInput');
+const searchSuggestions = document.getElementById('searchSuggestions');
+const shareModal = document.getElementById('shareModal');
+const reportModal = document.getElementById('reportModal');
+const shareUrl = document.getElementById('shareUrl');
+const reportForm = document.getElementById('reportForm');
+
+// Initialize the application
+async function initializeApp() {
+    try {
+        // Load movie database
+        await loadMovieDatabase();
+        
+        // Get video ID from URL
         const urlParams = new URLSearchParams(window.location.search);
         const videoId = urlParams.get('q');
+        
+        if (!videoId) {
+            showError("No video specified");
+            return;
+        }
+        
+        // Load the video
+        loadVideo(videoId);
+        
+        // Set up event listeners
+        setupEventListeners();
+        
+        // Update UI based on user data
+        updateUI();
+        
+        // Add to watch history
+        addToHistory(videoId);
+        
+    } catch (error) {
+        console.error('Initialization error:', error);
+        showToast('Failed to load content. Please refresh the page.');
+    }
+}
 
-        // State management
-        let currentVideo = null;
-        let userInteractions = JSON.parse(localStorage.getItem('userInteractions') || '{}');
-        let watchHistory = JSON.parse(localStorage.getItem('watchHistory') || '[]');
-        let favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
-        let watchLater = JSON.parse(localStorage.getItem('watchLater') || '[]');
+// Load movie database from embedded JSON
+async function loadMovieDatabase() {
+    try {
+        const movieDbTag = document.querySelector('MovieDatabase');
+        if (!movieDbTag) throw new Error('Movie database not found');
+        
+        movieDatabase = JSON.parse(movieDbTag.textContent);
+        console.log(`Loaded ${movieDatabase.length} movies/shows`);
+    } catch (error) {
+        console.error('Error loading movie database:', error);
+        movieDatabase = []; // Ensure we have an empty array
+        throw error; // Re-throw to be caught by initializeApp
+    }
+}
 
-        // Initialize app
-        document.addEventListener('DOMContentLoaded', () => {
-            loadVideo();
-            loadRelatedVideos();
-            setupEventListeners();
-            setupSearch();
-            updateUI();
-            addToHistory();
+// Load video by ID
+function loadVideo(videoId) {
+    currentVideo = movieDatabase.find(item => item.id.toString() === videoId);
+    
+    if (!currentVideo) {
+        showError("Video not found");
+        return;
+    }
+
+    // Update video info
+    videoTitle.textContent = currentVideo.title || currentVideo.name;
+    releaseDate.textContent = formatDate(currentVideo.release_date || currentVideo.first_air_date);
+    rating.textContent = currentVideo.vote_average ? `${currentVideo.vote_average}/10` : 'N/A';
+    descriptionContent.textContent = currentVideo.overview || 'No description available.';
+
+    // Load video player
+    const mediaType = currentVideo.media_type || (currentVideo.title ? 'movie' : 'tv');
+    const embedUrl = mediaType === 'movie' 
+        ? `https://vidsrc.xyz/embed/movie?tmdb=${currentVideo.id}&autoplay=1`
+        : `https://vidsrc.xyz/embed/tv?tmdb=${currentVideo.id}&season=1&episode=1&autoplay=1`;
+    
+    videoPlayer.src = embedUrl;
+
+    // Update stats
+    updateVideoStats();
+}
+
+// Update video statistics display
+function updateVideoStats() {
+    if (!currentVideo) return;
+    
+    const videoData = userInteractions[currentVideo.id] || { 
+        views: Math.floor(Math.random() * 5000000)
+    };
+    
+    viewCount.textContent = formatNumber(videoData.views) + ' views';
+    
+    // Add temporal data notice
+    const notice = document.createElement('small');
+    notice.style.color = 'var(--text-muted)';
+    notice.innerHTML = ' <i class="fas fa-question-circle" title="This data is temporary and for demo purposes"></i>';
+    viewCount.appendChild(notice);
+}
+
+// Set up all event listeners
+function setupEventListeners() {
+    // Favorite button
+    favoriteBtn.addEventListener('click', toggleFavorite);
+    
+    // Watch Later button
+    watchLaterBtn.addEventListener('click', toggleWatchLater);
+    
+    // Description expand
+    expandBtn.addEventListener('click', toggleDescription);
+    
+    // Share button
+    shareBtn.addEventListener('click', openShareModal);
+    
+    // Quick actions
+    document.getElementById('historyBtn').addEventListener('click', () => {
+        window.location.href = 'playlist/history.html';
+    });
+    
+    document.getElementById('reportBtn').addEventListener('click', openReportModal);
+    
+    // Report form
+    reportForm.addEventListener('submit', submitReport);
+    document.getElementById('reportText').addEventListener('input', updateCharCount);
+    
+    // Search functionality
+    setupSearch();
+}
+
+// Toggle favorite status
+function toggleFavorite() {
+    const index = favorites.indexOf(currentVideo.id.toString());
+    
+    if (index > -1) {
+        favorites.splice(index, 1);
+        favoriteBtn.classList.remove('active');
+        showToast('Removed from favorites');
+    } else {
+        favorites.push(currentVideo.id.toString());
+        favoriteBtn.classList.add('active');
+        showToast('Added to favorites');
+    }
+    
+    localStorage.setItem('favorites', JSON.stringify(favorites));
+}
+
+// Toggle watch later status
+function toggleWatchLater() {
+    const index = watchLater.indexOf(currentVideo.id.toString());
+    
+    if (index > -1) {
+        watchLater.splice(index, 1);
+        watchLaterBtn.classList.remove('active');
+        showToast('Removed from Watch Later');
+    } else {
+        watchLater.push(currentVideo.id.toString());
+        watchLaterBtn.classList.add('active');
+        showToast('Added to Watch Later');
+    }
+    
+    localStorage.setItem('watchLater', JSON.stringify(watchLater));
+}
+
+// Toggle description expansion
+function toggleDescription() {
+    if (descriptionBox.classList.contains('expanded')) {
+        descriptionBox.classList.remove('expanded');
+        expandBtn.textContent = 'Show more';
+        descriptionContent.style.maxHeight = '100px';
+    } else {
+        descriptionBox.classList.add('expanded');
+        expandBtn.textContent = 'Show less';
+        descriptionContent.style.maxHeight = 'none';
+    }
+}
+
+// Open share modal
+function openShareModal() {
+    const shareUrlText = `${window.location.origin}/watch.html?q=${currentVideo.id}`;
+    shareUrl.textContent = shareUrlText;
+    
+    // Show native share button if supported
+    if (navigator.share) {
+        document.getElementById('nativeShareBtn').style.display = 'flex';
+    }
+    
+    shareModal.style.display = 'flex';
+}
+
+// Open report modal
+function openReportModal() {
+    reportModal.style.display = 'flex';
+}
+
+// Close modal
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+    if (modalId === 'reportModal') {
+        reportForm.reset();
+        updateCharCount();
+    }
+}
+
+// Copy to clipboard
+function copyToClipboard() {
+    const url = shareUrl.textContent;
+    navigator.clipboard.writeText(url).then(() => {
+        showToast('Link copied to clipboard!');
+        closeModal('shareModal');
+    });
+}
+
+// Share on social platform
+function shareOnPlatform(platform) {
+    const url = encodeURIComponent(shareUrl.textContent);
+    const title = encodeURIComponent(currentVideo?.title || currentVideo?.name || 'Watch on PikuFlix');
+    
+    const platforms = {
+        twitter: `https://twitter.com/intent/tweet?url=${url}&text=${title}`,
+        facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
+        whatsapp: `https://wa.me/?text=${title}%20${url}`,
+        reddit: `https://reddit.com/submit?url=${url}&title=${title}`
+    };
+    
+    window.open(platforms[platform], '_blank', 'width=600,height=400');
+}
+
+// Native share
+function shareNative() {
+    if (navigator.share) {
+        navigator.share({
+            title: currentVideo?.title || currentVideo?.name,
+            text: currentVideo?.overview || 'Check out this video on PikuFlix',
+            url: shareUrl.textContent
+        }).then(() => {
+            closeModal('shareModal');
         });
+    }
+}
 
-        function loadVideo() {
-            currentVideo = movieDatabase.find(item => item.id.toString() === videoId);
-            if (!currentVideo) return showError();
+// Update character count
+function updateCharCount() {
+    const text = document.getElementById('reportText').value;
+    document.getElementById('charCount').textContent = text.length;
+}
 
-            // Update video info
-            document.getElementById('videoTitle').textContent = currentVideo.title || currentVideo.name;
-            document.getElementById('releaseDate').textContent = formatDate(currentVideo.release_date || currentVideo.first_air_date);
-            document.getElementById('rating').textContent = currentVideo.vote_average ? `${currentVideo.vote_average}/10` : 'N/A';
-            document.getElementById('descriptionContent').textContent = currentVideo.overview || 'No description available.';
-
-            // Load video player
-            const mediaType = currentVideo.media_type || (currentVideo.title ? 'movie' : 'tv');
-            const embedUrl = mediaType === 'movie' 
-                ? `https://vidsrc.xyz/embed/movie?tmdb=${currentVideo.id}&autoplay=1`
-                : `https://vidsrc.xyz/embed/tv?tmdb=${currentVideo.id}&season=1&episode=1&autoplay=1`;
-            
-            document.getElementById('videoPlayer').src = embedUrl;
-
-            // Update stats
-            updateVideoStats();
-            updateEngagementBar();
-        }
-
-        function updateVideoStats() {
-            if (!currentVideo) return;
-            
-            const videoData = userInteractions[videoId] || { 
-                views: Math.floor(Math.random() * 5000000)
-            };
-            
-            document.getElementById('viewCount').textContent = formatNumber(videoData.views) + ' views';
-            
-            // Add temporal data notice
-            const notice = document.createElement('small');
-            notice.style.color = 'var(--text-muted)';
-            notice.innerHTML = ' <i class="fas fa-question-circle" title="This data is temporary and for demo purposes"></i>';
-            document.getElementById('viewCount').appendChild(notice);
-        }
-
-        function updateEngagementBar() {
-            if (!currentVideo) return;
-            const videoData = userInteractions[videoId] || { likes: 0, dislikes: 0 };
-            const total = videoData.likes + videoData.dislikes;
-            const percentage = total > 0 ? (videoData.likes / total) * 100 : 0;
-            document.getElementById('likeFill').style.width = `${percentage}%`;
-        }
-
-        function setupEventListeners() {
-            // Favorite
-            document.getElementById('favoriteBtn').addEventListener('click', toggleFavorite);
-            
-            // Watch Later
-            document.getElementById('watchLaterBtn').addEventListener('click', toggleWatchLater);
-            
-            // Description expand
-            document.getElementById('expandBtn').addEventListener('click', toggleDescription);
-            
-            // Share
-            document.getElementById('shareBtn').addEventListener('click', openShareModal);
-            
-            // Quick actions
-            document.getElementById('historyBtn').addEventListener('click', () => {
-                window.location.href = 'playlist/history.html';
-            });
-            document.getElementById('reportBtn').addEventListener('click', openReportModal);
-            
-            // Report form
-            document.getElementById('reportForm').addEventListener('submit', submitReport);
-            document.getElementById('reportText').addEventListener('input', updateCharCount);
-        }
-
-        function handleEngagement(type) {
-            if (!userInteractions[videoId]) {
-                userInteractions[videoId] = { views: Math.floor(Math.random() * 5000000), likes: Math.floor(Math.random() * 50000), dislikes: Math.floor(Math.random() * 5000) };
+// Submit report
+function submitReport(e) {
+    e.preventDefault();
+    
+    const reporterName = document.getElementById('reporterName').value || 'Anonymous';
+    const reportText = document.getElementById('reportText').value;
+    
+    if (!reportText.trim()) {
+        showToast('Please enter a report description');
+        return;
+    }
+    
+    // Generate Discord embed format
+    const embed = {
+        title: "Content Report",
+        color: 0xe50914,
+        fields: [
+            {
+                name: "Reported Movie",
+                value: currentVideo?.title || currentVideo?.name || 'Unknown',
+                inline: true
+            },
+            {
+                name: "Reporter Name",
+                value: reporterName,
+                inline: true
+            },
+            {
+                name: "Report Description",
+                value: reportText,
+                inline: false
             }
-            
-            const btn = document.getElementById(type + 'Btn');
-            const otherBtn = document.getElementById(type === 'like' ? 'dislikeBtn' : 'likeBtn');
-            const otherType = type === 'like' ? 'dislikes' : 'likes';
-            
-            if (btn.classList.contains('active')) {
-                btn.classList.remove('active');
-                userInteractions[videoId][type + 's']--;
-            } else {
-                btn.classList.add('active');
-                otherBtn.classList.remove('active');
-                userInteractions[videoId][type + 's']++;
-                if (otherBtn.classList.contains('active')) {
-                    userInteractions[videoId][otherType]--;
-                }
-            }
-            
-            localStorage.setItem('userInteractions', JSON.stringify(userInteractions));
-            updateVideoStats();
-            updateEngagementBar();
-            showToast(type === 'like' ? 'Added to liked videos' : 'Noted your feedback');
+        ],
+        timestamp: new Date().toISOString()
+    };
+    
+    fetch('https://ptb.discord.com/api/webhooks/1402613540120170627/NxR7IHICZgzymOqqBEa2qZJmORlj_ZX3n8Czk6Z-MhsSReJ5WjtWNzpHncvCtaAWlMNp', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            embeds: [embed]
+        })
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Failed to send report');
+        showToast('Report submitted successfully. Thank you!');
+        closeModal('reportModal');
+    })
+    .catch(err => {
+        console.error(err);
+        showToast('Error sending report. Try again later.');
+    });
+}
+
+// Set up search functionality
+function setupSearch() {
+    let searchTimeout;
+    
+    searchInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        const query = e.target.value.trim();
+        
+        if (query.length < 2) {
+            searchSuggestions.style.display = 'none';
+            return;
         }
+        
+        searchTimeout = setTimeout(() => showSuggestions(query), 300);
+    });
+    
+    searchInput.addEventListener('blur', () => {
+        setTimeout(() => searchSuggestions.style.display = 'none', 200);
+    });
+    
+    document.getElementById('searchBtn').addEventListener('click', performSearch);
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') performSearch();
+    });
+}
 
-        function toggleFavorite() {
-            const btn = document.getElementById('favoriteBtn');
-            const index = favorites.indexOf(videoId);
-            
-            if (index > -1) {
-                favorites.splice(index, 1);
-                btn.classList.remove('active');
-                showToast('Removed from favorites');
-            } else {
-                favorites.push(videoId);
-                btn.classList.add('active');
-                showToast('Added to favorites');
-            }
-            
-            localStorage.setItem('favorites', JSON.stringify(favorites));
-        }
+// Show search suggestions
+function showSuggestions(query) {
+    const results = movieDatabase
+        .filter(item => {
+            const title = (item.title || item.name).toLowerCase();
+            return title.includes(query.toLowerCase());
+        })
+        .slice(0, 5);
+    
+    if (results.length === 0) {
+        searchSuggestions.style.display = 'none';
+        return;
+    }
+    
+    searchSuggestions.innerHTML = results.map(item => `
+        <div class="suggestion-item" onclick="window.location.href='watch.html?q=${item.id}'">
+            <i class="fas fa-${item.media_type === 'tv' ? 'tv' : 'film'}"></i>
+            <div>
+                <div>${item.title || item.name}</div>
+                <small style="color: var(--text-muted);">${item.release_date || item.first_air_date || 'N/A'}</small>
+            </div>
+        </div>
+    `).join('');
+    
+    searchSuggestions.style.display = 'block';
+}
 
-        function toggleWatchLater() {
-            const btn = document.getElementById('watchLaterBtn');
-            const index = watchLater.indexOf(videoId);
-            
-            if (index > -1) {
-                watchLater.splice(index, 1);
-                btn.classList.remove('active');
-                showToast('Removed from Watch Later');
-            } else {
-                watchLater.push(videoId);
-                btn.classList.add('active');
-                showToast('Added to Watch Later');
-            }
-            
-            localStorage.setItem('watchLater', JSON.stringify(watchLater));
-        }
+// Perform search
+function performSearch() {
+    const query = searchInput.value.trim();
+    if (query) {
+        window.location.href = `index.html?q=${encodeURIComponent(query)}`;
+    }
+}
 
-        function toggleDescription() {
-            const box = document.getElementById('descriptionBox');
-            const btn = document.getElementById('expandBtn');
-            const content = document.getElementById('descriptionContent');
-            
-            if (box.classList.contains('expanded')) {
-                box.classList.remove('expanded');
-                btn.textContent = 'Show more';
-                content.style.maxHeight = '100px';
-            } else {
-                box.classList.add('expanded');
-                btn.textContent = 'Show less';
-                content.style.maxHeight = 'none';
-            }
-        }
-
-        function openShareModal() {
-            const shareUrl = `${window.location.origin}/watch.html?q=${videoId}`;
-            document.getElementById('shareUrl').textContent = shareUrl;
-            
-            // Show native share button if supported
-            if (navigator.share) {
-                document.getElementById('nativeShareBtn').style.display = 'flex';
-            }
-            
-            document.getElementById('shareModal').style.display = 'flex';
-        }
-
-        function openReportModal() {
-            document.getElementById('reportModal').style.display = 'flex';
-        }
-
-        function closeModal(modalId) {
-            document.getElementById(modalId).style.display = 'none';
-            if (modalId === 'reportModal') {
-                document.getElementById('reportForm').reset();
-                updateCharCount();
-            }
-        }
-
-        function copyToClipboard() {
-            const url = document.getElementById('shareUrl').textContent;
-            navigator.clipboard.writeText(url).then(() => {
-                showToast('Link copied to clipboard!');
-                closeModal('shareModal');
-            });
-        }
-
-        function shareOnPlatform(platform) {
-            const url = encodeURIComponent(document.getElementById('shareUrl').textContent);
-            const title = encodeURIComponent(currentVideo?.title || currentVideo?.name || 'Watch on PikuFlix');
-            
-            const platforms = {
-                twitter: `https://twitter.com/intent/tweet?url=${url}&text=${title}`,
-                facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
-                whatsapp: `https://wa.me/?text=${title}%20${url}`,
-                reddit: `https://reddit.com/submit?url=${url}&title=${title}`
-            };
-            
-            window.open(platforms[platform], '_blank', 'width=600,height=400');
-        }
-
-        function shareNative() {
-            if (navigator.share) {
-                navigator.share({
-                    title: currentVideo?.title || currentVideo?.name,
-                    text: currentVideo?.overview || 'Check out this video on PikuFlix',
-                    url: document.getElementById('shareUrl').textContent
-                }).then(() => {
-                    closeModal('shareModal');
-                });
-            }
-        }
-
-        function updateCharCount() {
-            const text = document.getElementById('reportText').value;
-            document.getElementById('charCount').textContent = text.length;
-        }
-
-        function submitReport(e) {
-            e.preventDefault();
-            
-            const reporterName = document.getElementById('reporterName').value || 'Anonymous';
-            const reportText = document.getElementById('reportText').value;
-            
-            if (!reportText.trim()) {
-                showToast('Please enter a report description');
-                return;
-            }
-            
-            // Generate Discord embed format
-            const embed = {
-                title: "Content Report",
-                color: 0xe50914,
-                fields: [
-                    {
-                        name: "Reported Movie",
-                        value: currentVideo?.title || currentVideo?.name || 'Unknown',
-                        inline: true
-                    },
-                    {
-                        name: "Reporter Name",
-                        value: reporterName,
-                        inline: true
-                    },
-                    {
-                        name: "Report Description",
-                        value: reportText,
-                        inline: false
-                    }
-                ],
-                timestamp: new Date().toISOString()
-            };
-            
-            fetch('https://ptb.discord.com/api/webhooks/1402613540120170627/NxR7IHICZgzymOqqBEa2qZJmORlj_ZX3n8Czk6Z-MhsSReJ5WjtWNzpHncvCtaAWlMNp', {
-               method: 'POST',
-               headers: {
-                   'Content-Type': 'application/json'
-               },
-               body: JSON.stringify({
-                  embeds: [embed]
-               })
-            })
-           .then(res => {
-               if (!res.ok) throw new Error('Failed to send report');
-               showToast('Report submitted successfully. Thank you!');
-               closeModal('reportModal');
-            })
-           .catch(err => {
-               console.error(err);
-               showToast('Error sending report. Try again later.');
-           });
-
-            
-            showToast('Report submitted successfully. Thank you!');
-            closeModal('reportModal');
-        }
-
-        function setupSearch() {
-            const searchInput = document.getElementById('searchInput');
-            const searchBtn = document.getElementById('searchBtn');
-            const suggestions = document.getElementById('searchSuggestions');
-            
-            let searchTimeout;
-            
-            searchInput.addEventListener('input', (e) => {
-                clearTimeout(searchTimeout);
-                const query = e.target.value.trim();
-                
-                if (query.length < 2) {
-                    suggestions.style.display = 'none';
-                    return;
-                }
-                
-                searchTimeout = setTimeout(() => showSuggestions(query), 300);
-            });
-            
-            searchInput.addEventListener('blur', () => {
-                setTimeout(() => suggestions.style.display = 'none', 200);
-            });
-            
-            searchBtn.addEventListener('click', performSearch);
-            searchInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') performSearch();
-            });
-        }
-
-        function showSuggestions(query) {
-            const suggestions = document.getElementById('searchSuggestions');
-            const results = movieDatabase
-                .filter(item => {
-                    const title = (item.title || item.name).toLowerCase();
-                    return title.includes(query.toLowerCase());
-                })
-                .slice(0, 5);
-            
-            if (results.length === 0) {
-                suggestions.style.display = 'none';
-                return;
-            }
-            
-            suggestions.innerHTML = results.map(item => `
-                <div class="suggestion-item" onclick="window.location.href='watch.html?q=${item.id}'">
-                    <i class="fas fa-${item.media_type === 'tv' ? 'tv' : 'film'}"></i>
-                    <div>
-                        <div>${item.title || item.name}</div>
-                        <small style="color: var(--text-muted);">${item.release_date || item.first_air_date || 'N/A'}</small>
+// Load related videos
+function loadRelatedVideos() {
+    if (!currentVideo) return;
+    
+    // Get related videos based on genre/keywords
+    const related = movieDatabase
+        .filter(item => item.id !== currentVideo.id)
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 8);
+    
+    relatedVideos.innerHTML = related.map(video => {
+        const mediaType = video.media_type || (video.title ? 'movie' : 'tv');
+        const embedUrl = mediaType === 'movie' 
+            ? `https://vidsrc.xyz/embed/movie?tmdb=${video.id}`
+            : `https://vidsrc.xyz/embed/tv?tmdb=${video.id}&season=1&episode=1`;
+        
+        return `
+            <div class="related-item" onclick="window.location.href='watch.html?q=${video.id}'">
+                <div class="related-thumb">
+                    <iframe src="${embedUrl}"></iframe>
+                    <div class="duration-badge">${getRandomDuration()}</div>
+                </div>
+                <div class="related-info">
+                    <div class="related-title">${video.title || video.name}</div>
+                    <div class="related-meta">
+                        <div>PikuFlix Originals</div>
+                        <div>${formatNumber(Math.floor(Math.random() * 1000000))} views</div>
                     </div>
                 </div>
-            `).join('');
-            
-            suggestions.style.display = 'block';
-        }
+            </div>
+        `;
+    }).join('');
+}
 
-        function performSearch() {
-            const query = document.getElementById('searchInput').value.trim();
-            if (query) {
-                // Redirect to index.html with a ?q= then the search query
-                if (query.includes(' ')) {
-                    window.location.href = `index.html?q=${encodeURIComponent(query)}`;
-                } else {
-                    window.location.href = `index.html?q=${query}`;
-                }
-            }
-        }
+// Add to watch history
+function addToHistory(videoId) {
+    if (!currentVideo) return;
+    
+    const historyItem = {
+        id: videoId,
+        title: currentVideo.title || currentVideo.name,
+        timestamp: Date.now()
+    };
+    
+    // Remove if already exists
+    watchHistory = watchHistory.filter(item => item.id !== videoId);
+    
+    // Add to beginning
+    watchHistory.unshift(historyItem);
+    
+    // Keep only last 50 items
+    watchHistory = watchHistory.slice(0, 50);
+    
+    localStorage.setItem('watchHistory', JSON.stringify(watchHistory));
+}
 
-        function loadRelatedVideos() {
-            const container = document.getElementById('relatedVideos');
-            
-            if (!currentVideo) return;
-            
-            // Get related videos based on genre/keywords
-            const related = movieDatabase
-                .filter(item => item.id !== currentVideo.id)
-                .sort(() => Math.random() - 0.5)
-                .slice(0, 8);
-            
-            container.innerHTML = related.map(video => {
-                const mediaType = video.media_type || (video.title ? 'movie' : 'tv');
-                const embedUrl = mediaType === 'movie' 
-                    ? `https://vidsrc.xyz/embed/movie?tmdb=${video.id}`
-                    : `https://vidsrc.xyz/embed/tv?tmdb=${video.id}&season=1&episode=1`;
-                
-                return `
-                    <div class="related-item" onclick="window.location.href='watch.html?q=${video.id}'">
-                        <div class="related-thumb">
-                            <iframe src="${embedUrl}"></iframe>
-                            <div class="duration-badge">${getRandomDuration()}</div>
-                        </div>
-                        <div class="related-info">
-                            <div class="related-title">${video.title || video.name}</div>
-                            <div class="related-meta">
-                                <div>PikuFlix Originals</div>
-                                <div>${formatNumber(Math.floor(Math.random() * 1000000))} views</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
+// Update UI based on user data
+function updateUI() {
+    if (!currentVideo) return;
+    
+    // Update favorite button
+    if (favorites.includes(currentVideo.id.toString())) {
+        favoriteBtn.classList.add('active');
+    }
+    
+    // Update watch later button
+    if (watchLater.includes(currentVideo.id.toString())) {
+        watchLaterBtn.classList.add('active');
+    }
+    
+    // Load related videos
+    loadRelatedVideos();
+}
 
-        function addToHistory() {
-            if (!videoId) return;
-            
-            const historyItem = {
-                id: videoId,
-                title: currentVideo?.title || currentVideo?.name || 'Unknown',
-                timestamp: Date.now()
-            };
-            
-            // Remove if already exists
-            watchHistory = watchHistory.filter(item => item.id !== videoId);
-            
-            // Add to beginning
-            watchHistory.unshift(historyItem);
-            
-            // Keep only last 50 items
-            watchHistory = watchHistory.slice(0, 50);
-            
-            localStorage.setItem('watchHistory', JSON.stringify(watchHistory));
-        }
+// Show toast notification
+function showToast(message) {
+    toast.textContent = message;
+    toast.classList.add('show');
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
 
-        function showHistory() {
-            if (watchHistory.length === 0) {
-                showToast('No watch history yet');
-                return;
-            }
-            
-            const historyList = watchHistory.slice(0, 10).map(item => 
-                `• ${item.title} (${formatDate(new Date(item.timestamp))})`
-            ).join('\n');
-            
-            alert(`Recent Watch History:\n\n${historyList}`);
-        }
+// Show error message
+function showError(message) {
+    videoTitle.textContent = 'Error';
+    descriptionContent.textContent = message;
+    videoPlayer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-secondary);">Video not available</div>';
+}
 
-        function updateUI() {
-            // Update button states
-            if (favorites.includes(videoId)) {
-                document.getElementById('favoriteBtn').classList.add('active');
-            }
-            
-            if (watchLater.includes(videoId)) {
-                document.getElementById('watchLaterBtn').classList.add('active');
-            }
-        }
+// Utility functions
+function formatNumber(num) {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+}
 
-        function showToast(message) {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.classList.add('show');
-            
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 3000);
-        }
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+    });
+}
 
-        function showError() {
-            document.getElementById('videoTitle').textContent = 'Video Not Found';
-            document.getElementById('descriptionContent').textContent = 'The requested video could not be found.';
-            document.getElementById('videoPlayer').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-secondary);">Video not available</div>';
-        }
+function getRandomDuration() {
+    const minutes = Math.floor(Math.random() * 180) + 30;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return hours > 0 ? `${hours}:${mins.toString().padStart(2, '0')}:00` : `${mins}:00`;
+}
 
-        // Utility functions
-        function formatNumber(num) {
-            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-            return num.toString();
-        }
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    
+    switch(e.key) {
+        case 'f':
+            favoriteBtn.click();
+            break;
+        case 'w':
+            watchLaterBtn.click();
+            break;
+        case '/':
+            e.preventDefault();
+            searchInput.focus();
+            break;
+        case 'Escape':
+            closeModal('shareModal');
+            closeModal('reportModal');
+            break;
+    }
+});
 
-        function formatDate(dateString) {
-            if (!dateString) return 'N/A';
-            const date = new Date(dateString);
-            return date.toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'short', 
-                day: 'numeric' 
-            });
-        }
-
-        function getRandomDuration() {
-            const minutes = Math.floor(Math.random() * 180) + 30;
-            const hours = Math.floor(minutes / 60);
-            const mins = minutes % 60;
-            return hours > 0 ? `${hours}:${mins.toString().padStart(2, '0')}:00` : `${mins}:00`;
-        }
-
-        // Theme toggle
-        document.getElementById('themeToggle').addEventListener('click', () => {
-            document.body.classList.toggle('light-theme');
-            const icon = document.querySelector('#themeToggle i');
-            icon.className = document.body.classList.contains('light-theme') ? 'fas fa-sun' : 'fas fa-moon';
-        });
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            
-            switch(e.key) {
-                case 'f':
-                    document.getElementById('favoriteBtn').click();
-                    break;
-                case 'w':
-                    document.getElementById('watchLaterBtn').click();
-                    break;
-                case '/':
-                    e.preventDefault();
-                    document.getElementById('searchInput').focus();
-                    break;
-                case 'Escape':
-                    closeModal('shareModal');
-                    closeModal('reportModal');
-                    break;
-            }
-        });
-
-        // Auto-save viewing progress (demo)
-        let viewingProgress = 0;
-        setInterval(() => {
-            if (currentVideo) {
-                viewingProgress += 5;
-                localStorage.setItem(`progress_${videoId}`, viewingProgress);
-            }
-        }, 5000);
-
-        // Picture-in-picture support
-        if ('pictureInPictureEnabled' in document) {
-            const pipBtn = document.createElement('button');
-            pipBtn.innerHTML = '<i class="fas fa-external-link-alt"></i> PiP';
-            pipBtn.className = 'action-btn tooltip';
-            pipBtn.setAttribute('data-tooltip', 'Picture in Picture');
-            pipBtn.addEventListener('click', async () => {
-                const video = document.querySelector('iframe');
-                if (video && !document.pictureInPictureElement) {
-                    try {
-                        await video.requestPictureInPicture();
-                    } catch (error) {
-                        showToast('Picture-in-Picture not supported');
-                    }
-                }
-            });
-            document.querySelector('.action-buttons').appendChild(pipBtn);
-        }
-    </script>
+// Initialize the app when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    initializeApp();
+}
+</script>
 </body>
 </html>
