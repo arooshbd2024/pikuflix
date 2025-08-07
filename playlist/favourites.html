@@ -1097,7 +1097,7 @@
 
         <div class="empty-state" id="emptyState" style="display: none;">
             <div class="empty-icon">
-                <i class="fas fa-clock"></i>
+                <i class="fas fa-heart"></i>
             </div>
             <h3 class="empty-text">Your Favourites list is empty</h3>
             <p>Add videos to Favourites by clicking the "Favourites" button</p>
@@ -1109,191 +1109,229 @@
     <!-- Toast Container -->
     <div class="toast" id="toast"></div>
 
-    <script>
-        // Get elements
-        const movieDbTag = document.querySelector('MovieDatabase');
-        const movieDatabase = JSON.parse(movieDbTag.textContent);
-        let favorites = JSON.parse(localStorage.getItem('favorites') || []);
+<script>
+    // Get elements
+    const movieDbTag = document.querySelector('MovieDatabase');
+    let movieDatabase = [];
+    let favorites = [];
 
-        // Initialize app
-        document.addEventListener('DOMContentLoaded', () => {
-            loadfavorites();
+    // Initialize app
+    document.addEventListener('DOMContentLoaded', () => {
+        try {
+            // Parse the embedded JSON data
+            movieDatabase = JSON.parse(movieDbTag.textContent.trim());
+            
+            // Load favorites from localStorage only after JSON is parsed
+            const storedFavorites = localStorage.getItem('favorites');
+            favorites = storedFavorites ? JSON.parse(storedFavorites) : [];
+            
+            loadFavorites();
             setupEventListeners();
             setupSearch();
-        });
+        } catch (error) {
+            console.error('Error loading movie data:', error);
+            showToast('Error loading favorites data');
+            document.getElementById('favoritesGrid').innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <h3 class="empty-text">Error loading favorites</h3>
+                    <p>Please try refreshing the page</p>
+                </div>
+            `;
+        }
+    });
 
-        function loadfavorites() {
-            const container = document.getElementById('favoritesGrid');
-            const emptyState = document.getElementById('emptyState');
+    function loadFavorites() {
+        const container = document.getElementById('favoritesGrid');
+        const emptyState = document.getElementById('emptyState');
+        
+        if (!favorites || favorites.length === 0) {
+            container.style.display = 'none';
+            emptyState.style.display = 'flex';
+            return;
+        }
+        
+        // Filter out any invalid favorites that don't exist in the database
+        favorites = favorites.filter(id => 
+            movieDatabase.some(m => m.id.toString() === id.toString())
+        );
+        
+        // Update localStorage with cleaned favorites
+        localStorage.setItem('favorites', JSON.stringify(favorites));
+        
+        container.innerHTML = favorites.map(id => {
+            const video = movieDatabase.find(m => m.id.toString() === id.toString());
+            if (!video) return '';
             
-            if (favorites.length === 0) {
-                container.style.display = 'none';
-                emptyState.style.display = 'flex';
-                return;
-            }
+            const mediaType = video.media_type || (video.title ? 'movie' : 'tv');
+            const embedUrl = mediaType === 'movie' 
+                ? `https://vidsrc.xyz/embed/movie?tmdb=${video.id}`
+                : `https://vidsrc.xyz/embed/tv?tmdb=${video.id}&season=1&episode=1`;
             
-            container.innerHTML = favorites.map(id => {
-                const video = movieDatabase.find(m => m.id.toString() === id);
-                if (!video) return '';
-                
-                const mediaType = video.media_type || (video.title ? 'movie' : 'tv');
-                const embedUrl = mediaType === 'movie' 
-                    ? `https://vidsrc.xyz/embed/movie?tmdb=${video.id}`
-                    : `https://vidsrc.xyz/embed/tv?tmdb=${video.id}&season=1&episode=1`;
-                
-                return `
-                    <div class="favorites-item" data-id="${video.id}">
-                        <div class="favorites-thumb" onclick="window.location.href='/watch.html?q=${video.id}'">
-                            <iframe src="${embedUrl}"></iframe>
-                            <button class="remove-btn" onclick="removeFromfavorites(event, '${video.id}')">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                        <div class="favorites-info">
-                            <h3 class="favorites-title">${video.title || video.name}</h3>
-                            <div class="favorites-meta">
-                                <span>${video.release_date || video.first_air_date || 'N/A'}</span>
-                                <span>${formatNumber(Math.floor(Math.random() * 1000000))} views</span>
-                            </div>
+            return `
+                <div class="favorites-item" data-id="${video.id}">
+                    <div class="favorites-thumb" onclick="window.location.href='/watch.html?q=${video.id}'">
+                        <iframe src="${embedUrl}" loading="lazy"></iframe>
+                        <button class="remove-btn" onclick="removeFromFavorites(event, '${video.id}')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="favorites-info">
+                        <h3 class="favorites-title">${video.title || video.name}</h3>
+                        <div class="favorites-meta">
+                            <span>${video.release_date || video.first_air_date || 'N/A'}</span>
+                            <span>${formatNumber(Math.floor(Math.random() * 1000000))} views</span>
                         </div>
                     </div>
-                `;
-            }).join('');
-        }
+                </div>
+            `;
+        }).join('');
+    }
 
-        function setupEventListeners() {
-            document.getElementById('clearAllBtn').addEventListener('click', clearAllfavorites);
-            document.getElementById('playAllBtn').addEventListener('click', playAllfavorites);
-        }
+    function setupEventListeners() {
+        document.getElementById('clearAllBtn').addEventListener('click', clearAllFavorites);
+        document.getElementById('playAllBtn').addEventListener('click', playAllFavorites);
+    }
 
-        function removeFromfavorites(event, id) {
-            event.stopPropagation();
+    function removeFromFavorites(event, id) {
+        event.stopPropagation();
+        
+        const index = favorites.findIndex(favId => favId.toString() === id.toString());
+        if (index > -1) {
+            favorites.splice(index, 1);
+            localStorage.setItem('favorites', JSON.stringify(favorites));
             
-            const index = favorites.indexOf(id);
-            if (index > -1) {
-                favorites.splice(index, 1);
-                localStorage.setItem('favorites', JSON.stringify(favorites));
-                
-                // Remove the item from DOM
-                document.querySelector(`.favorites-item[data-id="${id}"]`).remove();
-                
-                // Show empty state if list is now empty
-                if (favorites.length === 0) {
-                    document.getElementById('favoritesGrid').style.display = 'none';
-                    document.getElementById('emptyState').style.display = 'flex';
-                }
-                
-                showToast('Removed from Favourites');
-            }
-        }
-
-        function clearAllfavorites() {
+            // Remove the item from DOM
+            const itemToRemove = document.querySelector(`.favorites-item[data-id="${id}"]`);
+            if (itemToRemove) itemToRemove.remove();
+            
+            // Show empty state if list is now empty
             if (favorites.length === 0) {
-                showToast('Favourites is already empty');
-                return;
+                document.getElementById('favoritesGrid').style.display = 'none';
+                document.getElementById('emptyState').style.display = 'flex';
             }
             
-            if (confirm('Are you sure you want to clear your entire Favourites list? This cannot be undone.')) {
-                favorites = [];
-                localStorage.setItem('favorites', JSON.stringify(favorites));
-                loadfavorites();
-                showToast('Favourites list cleared');
-            }
+            showToast('Removed from Favorites');
         }
+    }
 
-        function playAllfavorites() {
-            if (favorites.length === 0) {
-                showToast('No videos in Favourites');
-                return;
-            }
-            
-            // Play the first video in the list
-            window.location.href = `/watch.html?q=${favorites[0]}`;
+    function clearAllFavorites() {
+        if (favorites.length === 0) {
+            showToast('Favorites is already empty');
+            return;
         }
-
-        function setupSearch() {
-            const searchInput = document.getElementById('searchInput');
-            const searchBtn = document.getElementById('searchBtn');
-            const suggestions = document.getElementById('searchSuggestions');
-            
-            let searchTimeout;
-            
-            searchInput.addEventListener('input', (e) => {
-                clearTimeout(searchTimeout);
-                const query = e.target.value.trim();
-                
-                if (query.length < 2) {
-                    suggestions.style.display = 'none';
-                    return;
-                }
-                
-                searchTimeout = setTimeout(() => showSuggestions(query), 300);
-            });
-            
-            searchInput.addEventListener('blur', () => {
-                setTimeout(() => suggestions.style.display = 'none', 200);
-            });
-            
-            searchBtn.addEventListener('click', performSearch);
-            searchInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') performSearch();
-            });
+        
+        if (confirm('Are you sure you want to clear your entire Favorites list? This cannot be undone.')) {
+            favorites = [];
+            localStorage.setItem('favorites', JSON.stringify(favorites));
+            loadFavorites();
+            showToast('Favorites list cleared');
         }
+    }
 
-        function showSuggestions(query) {
-            const suggestions = document.getElementById('searchSuggestions');
-            const results = movieDatabase
-                .filter(item => {
-                    const title = (item.title || item.name).toLowerCase();
-                    return title.includes(query.toLowerCase());
-                })
-                .slice(0, 5);
+    function playAllFavorites() {
+        if (favorites.length === 0) {
+            showToast('No videos in Favorites');
+            return;
+        }
+        
+        // Play the first video in the list
+        window.location.href = `/watch.html?q=${favorites[0]}`;
+    }
+
+    function setupSearch() {
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const suggestions = document.getElementById('searchSuggestions');
+        
+        let searchTimeout;
+        
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
             
-            if (results.length === 0) {
+            if (query.length < 2) {
                 suggestions.style.display = 'none';
                 return;
             }
             
-            suggestions.innerHTML = results.map(item => `
-                <div class="suggestion-item" onclick="window.location.href='/watch.html?q=${item.id}'">
-                    <i class="fas fa-${item.media_type === 'tv' ? 'tv' : 'film'}"></i>
-                    <div>
-                        <div>${item.title || item.name}</div>
-                        <small style="color: var(--text-muted);">${item.release_date || item.first_air_date || 'N/A'}</small>
-                    </div>
-                </div>
-            `).join('');
-            
-            suggestions.style.display = 'block';
-        }
-
-        function performSearch() {
-            const query = document.getElementById('searchInput').value.trim();
-            if (query) {
-                if (query.includes(' ')) {
-                    window.location.href = `/index.html?q=${encodeURIComponent(query)}`;
-                } else {
-                    window.location.href = `/index.html?q=${query}`;
-                }
+            searchTimeout = setTimeout(() => showSuggestions(query), 300);
+        });
+        
+        searchInput.addEventListener('focus', () => {
+            if (searchInput.value.trim().length >= 2) {
+                showSuggestions(searchInput.value.trim());
             }
-        }
+        });
+        
+        searchInput.addEventListener('blur', () => {
+            setTimeout(() => suggestions.style.display = 'none', 200);
+        });
+        
+        searchBtn.addEventListener('click', performSearch);
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch();
+        });
+    }
 
-        function showToast(message) {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.classList.add('show');
-            
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 3000);
+    function showSuggestions(query) {
+        const suggestions = document.getElementById('searchSuggestions');
+        const results = movieDatabase
+            .filter(item => {
+                const title = (item.title || item.name).toLowerCase();
+                return title.includes(query.toLowerCase());
+            })
+            .slice(0, 5);
+        
+        if (results.length === 0) {
+            suggestions.innerHTML = `
+                <div class="suggestion-item">
+                    <i class="fas fa-search"></i>
+                    <div>No results found</div>
+                </div>
+            `;
+            suggestions.style.display = 'block';
+            return;
         }
+        
+        suggestions.innerHTML = results.map(item => `
+            <div class="suggestion-item" onclick="window.location.href='/watch.html?q=${item.id}'">
+                <i class="fas fa-${item.media_type === 'tv' ? 'tv' : 'film'}"></i>
+                <div>
+                    <div>${item.title || item.name}</div>
+                    <small style="color: var(--text-muted);">${item.release_date || item.first_air_date || 'N/A'}</small>
+                </div>
+            </div>
+        `).join('');
+        
+        suggestions.style.display = 'block';
+    }
 
-        // Utility functions
-        function formatNumber(num) {
-            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-            return num.toString();
+    function performSearch() {
+        const query = document.getElementById('searchInput').value.trim();
+        if (query) {
+            window.location.href = `/index.html?q=${encodeURIComponent(query)}`;
         }
-    </script>
+    }
+
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    }
+
+    // Utility functions
+    function formatNumber(num) {
+        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+        if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+        return num.toString();
+    }
+</script>
 </body>
 </html>
