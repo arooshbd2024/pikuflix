@@ -1,0 +1,1102 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Install Pikuflix PWA</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="/manifest.json">
+    <style>
+        :root {
+            --primary-bg: #0a0a0a;
+            --secondary-bg: #111111;
+            --card-bg: #1a1a1a;
+            --accent-color: #f05454;
+            --accent-hover: #e63946;
+            --text-primary: #e0e0e0;
+            --text-secondary: #b0b0b0;
+            --text-muted: #888888;
+            --border-color: #333333;
+            --success-color: #50b3a2;
+            --warning-color: #f39c12;
+            --android-green: #3ddc84;
+            --android-dark: #0f9d58;
+            --gradient: linear-gradient(135deg, #f05454 0%, #e63946 100%);
+            --success-gradient: linear-gradient(135deg, #50b3a2 0%, #2d8659 100%);
+            --android-gradient: linear-gradient(135deg, #3ddc84 0%, #0f9d58 100%);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            --shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--primary-bg);
+            color: var(--text-primary);
+            line-height: 1.7;
+            overflow-x: hidden;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(240, 84, 84, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(80, 179, 162, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 30% 30%, rgba(61, 220, 132, 0.1) 0%, transparent 50%);
+            z-index: -1;
+            animation: float 20s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(1deg); }
+        }
+
+        header {
+            background: rgba(17, 17, 17, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            animation: slideDown 0.8s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1.5rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            font-size: clamp(1.5rem, 4vw, 2rem);
+            font-weight: 700;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { filter: drop-shadow(0 0 5px rgba(240, 84, 84, 0.3)); }
+            to { filter: drop-shadow(0 0 15px rgba(240, 84, 84, 0.6)); }
+        }
+
+        .header-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-weight: 300;
+        }
+
+        .version-badge {
+            background: rgba(80, 179, 162, 0.2);
+            color: var(--success-color);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border: 1px solid rgba(80, 179, 162, 0.3);
+        }
+
+        /* Main container */
+        .container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            flex: 1;
+            animation: fadeInUp 1s ease-out 0.3s both;
+        }
+
+        @keyframes fadeInUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .main-card {
+            background: var(--card-bg);
+            border-radius: 24px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            position: relative;
+            transition: all 0.5s ease;
+        }
+
+        .main-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gradient);
+            transition: background 0.5s ease;
+        }
+
+        .main-card.success::before {
+            background: var(--success-gradient);
+        }
+
+        .main-card.android::before {
+            background: var(--android-gradient);
+        }
+
+        .card-header {
+            padding: 3rem 2rem 2rem;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(240, 84, 84, 0.1) 0%, rgba(26, 26, 26, 1) 100%);
+            transition: background 0.5s ease;
+        }
+
+        .card-header.success {
+            background: linear-gradient(135deg, rgba(80, 179, 162, 0.1) 0%, rgba(26, 26, 26, 1) 100%);
+        }
+
+        .card-header.android {
+            background: linear-gradient(135deg, rgba(61, 220, 132, 0.1) 0%, rgba(26, 26, 26, 1) 100%);
+        }
+
+        .card-title {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            transition: all 0.5s ease;
+        }
+
+        .card-title.success {
+            background: var(--success-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .card-title.android {
+            background: var(--android-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Content */
+        .content {
+            padding: 2rem;
+        }
+
+        .intro-text {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            text-align: center;
+            line-height: 1.8;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .feature-card {
+            background: var(--secondary-bg);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow-hover);
+        }
+
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 1rem;
+            background: var(--gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+
+        .feature-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--accent-color);
+            text-align: center;
+        }
+
+        .feature-desc {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        .install-section {
+            text-align: center;
+            margin: 3rem 0;
+        }
+
+        .install-btn, .success-btn, .android-btn {
+            background: var(--gradient);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(240, 84, 84, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .success-btn {
+            background: var(--success-gradient);
+            box-shadow: 0 4px 20px rgba(80, 179, 162, 0.3);
+        }
+
+        .android-btn {
+            background: var(--android-gradient);
+            box-shadow: 0 4px 20px rgba(61, 220, 132, 0.3);
+        }
+
+        .install-btn:hover, .success-btn:hover, .android-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 25px rgba(240, 84, 84, 0.4);
+        }
+
+        .success-btn:hover {
+            box-shadow: 0 6px 25px rgba(80, 179, 162, 0.4);
+        }
+
+        .android-btn:hover {
+            box-shadow: 0 6px 25px rgba(61, 220, 132, 0.4);
+        }
+
+        .install-btn:active, .success-btn:active, .android-btn:active {
+            transform: scale(0.98);
+        }
+
+        .install-btn.hidden {
+            display: none;
+        }
+
+        .install-instructions {
+            background: rgba(80, 179, 162, 0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            border: 1px solid rgba(80, 179, 162, 0.2);
+            text-align: left;
+            display: none;
+        }
+
+        .install-instructions.show {
+            display: block;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .instructions-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--success-color);
+        }
+
+        .instructions-list {
+            list-style-type: none;
+        }
+
+        .instructions-list li {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+            position: relative;
+            color: var(--text-secondary);
+        }
+
+        .instructions-list li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--success-color);
+        }
+
+        /* Android APK Section */
+        .android-section {
+            background: rgba(61, 220, 132, 0.1);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 1px solid rgba(61, 220, 132, 0.3);
+            display: none;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .android-section.show {
+            display: block;
+        }
+
+        .android-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .android-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--android-gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+
+        .android-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--android-green);
+            margin: 0;
+        }
+
+        .android-desc {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .android-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .android-feature {
+            background: rgba(61, 220, 132, 0.05);
+            border-radius: 12px;
+            padding: 1rem;
+            border-left: 3px solid var(--android-green);
+        }
+
+        .android-feature-title {
+            font-weight: 600;
+            color: var(--android-green);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .android-feature-desc {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .android-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .android-note {
+            background: rgba(240, 84, 84, 0.1);
+            border: 1px solid rgba(240, 84, 84, 0.3);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        /* Success Message (hidden by default) */
+        .success-message {
+            background: rgba(80, 179, 162, 0.1);
+            border: 1px solid rgba(80, 179, 162, 0.3);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            text-align: center;
+            display: none;
+        }
+
+        .success-message.show {
+            display: block;
+            animation: successPulse 0.8s ease-out;
+        }
+
+        @keyframes successPulse {
+            0% { transform: scale(0.9); opacity: 0; }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1rem;
+            background: var(--success-gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: white;
+            animation: checkmarkBounce 0.6s ease-out 0.2s both;
+        }
+
+        @keyframes checkmarkBounce {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .success-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--success-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .success-desc {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .secondary-btn {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 0.8rem 1.5rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .secondary-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--text-primary);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .progress-bar.show {
+            display: block;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--success-gradient);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .update-info {
+            background: rgba(80, 179, 162, 0.1);
+            border: 1px solid rgba(80, 179, 162, 0.3);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            display: none;
+            text-align: center;
+        }
+
+        .update-info.show {
+            display: block;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .update-title {
+            color: var(--success-color);
+            font-weight: 600;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .update-steps {
+            list-style: none;
+            padding: 0;
+            margin: 1.5rem 0;
+            text-align: left;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .update-steps li {
+            margin-bottom: 1rem;
+            padding: 0.8rem 1rem 0.8rem 2.5rem;
+            background: rgba(80, 179, 162, 0.05);
+            border-radius: 8px;
+            position: relative;
+            color: var(--text-secondary);
+            border-left: 3px solid var(--success-color);
+        }
+
+        .update-steps li::before {
+            content: attr(data-step);
+            position: absolute;
+            left: 0.8rem;
+            top: 0.8rem;
+            width: 20px;
+            height: 20px;
+            background: var(--success-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .update-note {
+            background: rgba(240, 84, 84, 0.1);
+            border: 1px solid rgba(240, 84, 84, 0.3);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        /* Footer */
+        footer {
+            background: var(--secondary-bg);
+            border-top: 1px solid var(--border-color);
+            padding: 2rem;
+            margin-top: auto;
+        }
+
+        .footer-content {
+            max-width: 900px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .footer-text {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .header-content {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .container {
+                margin: 1rem auto;
+                padding: 0 0.5rem;
+            }
+
+            .content {
+                padding: 1.5rem;
+            }
+
+            .card-header {
+                padding: 2rem 1.5rem 1.5rem;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+
+            .android-features {
+                grid-template-columns: 1fr;
+            }
+
+            .action-buttons, .android-actions {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .install-btn, .success-btn, .android-btn, .secondary-btn {
+                width: 100%;
+                justify-content: center;
+                max-width: 300px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .content {
+                padding: 1rem;
+            }
+
+            .card-header {
+                padding: 1.5rem 1rem;
+            }
+
+            .android-header {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+
+        .scroll-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 3px;
+            background: var(--gradient);
+            z-index: 1000;
+            transition: width 0.1s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="scroll-indicator" id="scrollIndicator"></div>
+    
+    <header>
+        <div class="header-content">
+            <div>
+                <div class="logo">Pikuflix</div>
+                <div class="header-subtitle">Install as App</div>
+            </div>
+            <div id="versionBadge" class="version-badge" style="display: none;">
+                v<span id="currentVersion">1.0.0</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="main-card" id="mainCard">
+            <div class="card-header" id="cardHeader">
+                <h1 class="card-title" id="cardTitle">Install Pikuflix</h1>
+                <p class="intro-text" id="introText">Enjoy a seamless viewing experience by installing Pikuflix as a Progressive Web App on your device</p>
+            </div>
+
+            <div class="content">
+                <!-- Success Message (hidden by default) -->
+                <div id="successMessage" class="success-message">
+                    <div class="success-icon">✓</div>
+                    <h2 class="success-title">Installation Successful!</h2>
+                    <p class="success-desc">Pikuflix has been installed as an app on your device. You can now access it from your home screen for a native app experience.</p>
+                    
+                    <div class="action-buttons">
+                        <button class="success-btn" onclick="window.location.href = '/'">
+                            🎬 Start Watching
+                        </button>
+                        <a href="#features" class="secondary-btn">
+                            📱 Learn More
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Android APK Section (hidden by default) -->
+                <div id="androidSection" class="android-section">
+                    <div class="android-header">
+                        <div class="android-icon">🤖</div>
+                        <h2 class="android-title">Android APK Installation</h2>
+                    </div>
+                    <p class="android-desc">For Android users, you can download and install the Pikuflix APK for an enhanced native experience with additional features.</p>
+                    
+                    <div class="android-features">
+                        <div class="android-feature">
+                            <h3 class="android-feature-title">🚀 Better Performance</h3>
+                            <p class="android-feature-desc">Optimized specifically for Android devices for smoother playback</p>
+                        </div>
+                        <div class="android-feature">
+                            <h3 class="android-feature-title">📁 Offline Access</h3>
+                            <p class="android-feature-desc">Download content to watch completely offline</p>
+                        </div>
+                        <div class="android-feature">
+                            <h3 class="android-feature-title">🎛️ More Controls</h3>
+                            <p class="android-feature-desc">Additional playback and system integration features</p>
+                        </div>
+                    </div>
+                    
+                    <div class="android-actions">
+                        <button id="installApkButton" class="android-btn">
+                            📥 Install APK (v1.0.0)
+                        </button>
+                        <a href="#features" class="secondary-btn">
+                            ℹ️ Learn More
+                        </a>
+                    </div>
+                    
+                    <div class="android-note">
+                        <strong>⚠️ Note:</strong> You may need to enable "Install unknown apps" permission for your browser to install the APK. This is completely safe as the APK is directly from Pikuflix.
+                    </div>
+                </div>
+
+                <!-- Update Info (hidden by default) -->
+                <div id="updateInfo" class="update-info">
+                    <div class="update-title">🔄 How to Update Your Pikuflix App</div>
+                    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">New updates are automatically downloaded when available. Follow these simple steps to apply them:</p>
+                    
+                    <ol class="update-steps">
+                        <li data-step="1">Make sure you're connected to the internet</li>
+                        <li data-step="2">Open the Pikuflix app on your device</li>
+                        <li data-step="3">Close the app completely</li>
+                        <li data-step="4">Reopen the app - it will upgrade automatically!</li>
+                    </ol>
+                    
+                    <div class="update-note">
+                        <strong>💡 Pro Tip:</strong> Updates happen in the background, so you'll always have the latest features with minimal effort!
+                    </div>
+                </div>
+
+                <div id="featuresSection" class="features">
+                    <div class="feature-card">
+                        <div class="feature-icon">📱</div>
+                        <h3 class="feature-title">Works Offline</h3>
+                        <p class="feature-desc">Watch your favorite content even without an internet connection</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h3 class="feature-title">Fast Loading</h3>
+                        <p class="feature-desc">Instant loading with service worker caching</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔁</div>
+                        <h3 class="feature-title">Easy Upgrade Mechanism</h3>
+                        <p class="feature-desc">On a new upgrade, Open Pikuflix PWA once, close it. Then again reopen the app; the app should be upgraded automatically. If still not upgraded, kindly reinstall the app.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🖥️</div>
+                        <h3 class="feature-title">Cross-Platform</h3>
+                        <p class="feature-desc">Works on all devices - mobile, tablet, and desktop</p>
+                    </div>
+                </div>
+
+                <div class="install-section">
+                    <button id="installButton" class="install-btn hidden">
+                        <span>📱 Install Pikuflix</span>
+                    </button>
+                    
+                    <div id="installInstructions" class="install-instructions">
+                        <h3 class="instructions-title">Installation Instructions</h3>
+                        <ul class="instructions-list">
+                            <li>
+                                <strong>Android/Chrome:</strong> Tap "Add to Home screen" in the browser menu
+                            </li>
+                            <li>
+                                <strong>iOS/Safari:</strong> Tap the share icon and select "Add to Home Screen"
+                            </li>
+                            <li>
+                                <strong>Windows:</strong> Click "Install" in the browser address bar (Edge/Chrome)
+                            </li>
+                            <li>
+                                <strong>Mac:</strong> In Safari, go to File > Add to Desktop
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <p class="footer-text">© 2025 Pikuflix. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+<script>
+  // Scroll indicator
+  window.addEventListener('scroll', () => {
+    const scrollIndicator = document.getElementById('scrollIndicator');
+    const scrolled = (window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
+    scrollIndicator.style.width = scrolled + '%';
+  });
+
+  // DOM elements
+  const installButton = document.getElementById('installButton');
+  const installApkButton = document.getElementById('installApkButton');
+  const installInstructions = document.getElementById('installInstructions');
+  const androidSection = document.getElementById('androidSection');
+  const successMessage = document.getElementById('successMessage');
+  const updateInfo = document.getElementById('updateInfo');
+  const mainCard = document.getElementById('mainCard');
+  const cardHeader = document.getElementById('cardHeader');
+  const cardTitle = document.getElementById('cardTitle');
+  const introText = document.getElementById('introText');
+  const versionBadge = document.getElementById('versionBadge');
+  const currentVersion = document.getElementById('currentVersion');
+
+  let deferredPrompt;
+  let manifestVersion = null;
+  let serviceWorkerRegistration = null;
+  const localStorageKey = 'pwa_installed_version';
+
+  // Check if device is Android
+  function isAndroid() {
+    return /Android/i.test(navigator.userAgent);
+  }
+
+  // Check if app is running inside installed PWA
+  function isRunningInsidePWA() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+
+  // Fetch manifest and get pwa_version
+  async function getManifestVersion() {
+    try {
+      const resp = await fetch('/manifest.json', {cache: "no-store"});
+      if (!resp.ok) throw new Error('Manifest fetch failed');
+      const manifest = await resp.json();
+      return manifest.pwa_version || null;
+    } catch (e) {
+      console.warn('Failed to get manifest version:', e);
+      return null;
+    }
+  }
+
+  // Compare versions (simple semver compare)
+  function isNewerVersion(latest, current) {
+    if (!latest || !current) return false;
+    const latestParts = latest.split('.').map(Number);
+    const currentParts = current.split('.').map(Number);
+    for(let i=0; i < Math.max(latestParts.length, currentParts.length); i++) {
+      const l = latestParts[i] || 0;
+      const c = currentParts[i] || 0;
+      if (l > c) return true;
+      if (l < c) return false;
+    }
+    return false; // same version
+  }
+
+  // Show success state
+  function showSuccessState() {
+    // Update UI to success state
+    mainCard.classList.add('success');
+    cardHeader.classList.add('success');
+    cardTitle.classList.add('success');
+    cardTitle.textContent = 'Successfully Installed!';
+    introText.textContent = 'Pikuflix is now installed on your device and ready to use!';
+    
+    // Show success message
+    successMessage.classList.add('show');
+    installButton.classList.add('hidden');
+    installInstructions.classList.remove('show');
+    updateInfo.classList.remove('show');
+    androidSection.classList.remove('show');
+    
+    // Update version badge
+    if (manifestVersion) {
+      currentVersion.textContent = manifestVersion;
+      versionBadge.style.display = 'block';
+    }
+  }
+
+  // Show Android APK state
+  function showAndroidState() {
+    mainCard.classList.add('android');
+    cardHeader.classList.add('android');
+    cardTitle.classList.add('android');
+    androidSection.classList.add('show');
+  }
+
+  // Install APK
+  function installApk() {
+    // Create a hidden link and trigger click
+    const apkUrl = '/files/pikuflix.apk';
+    const link = document.createElement('a');
+    link.href = apkUrl;
+    link.download = 'pikuflix.apk';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Show a toast or something
+    alert('APK download started. Open the file to install Pikuflix on your Android device.');
+  }
+
+  // Update install button state based on situation
+  async function updateInstallButton() {
+    manifestVersion = await getManifestVersion();
+    const installedVersion = localStorage.getItem(localStorageKey);
+
+    if (isRunningInsidePWA()) {
+      // Already installed — show success state
+      showSuccessState();
+    } else if (isAndroid()) {
+      // Android device — show APK section
+      showAndroidState();
+      installApkButton.textContent = `📥 Install APK (v${manifestVersion || '1.0.0'})`;
+      installApkButton.onclick = installApk;
+    } else if (deferredPrompt) {
+      // Install prompt available — normal install button
+      installButton.textContent = '📱 Install Pikuflix';
+      installButton.className = 'install-btn';
+      installButton.classList.remove('hidden');
+      installButton.onclick = async () => {
+        try {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          console.log(`User response to install prompt: ${outcome}`);
+          if (outcome === 'accepted') {
+            localStorage.setItem(localStorageKey, manifestVersion || 'unknown');
+            showSuccessState();
+          }
+          deferredPrompt = null;
+        } catch (error) {
+          console.error('Installation failed:', error);
+        }
+      };
+      installInstructions.classList.remove('show');
+      updateInfo.classList.remove('show');
+      androidSection.classList.remove('show');
+    } else if (installedVersion) {
+      // App is installed but not in PWA mode — show update instructions
+      installButton.classList.add('hidden');
+      installInstructions.classList.remove('show');
+      androidSection.classList.remove('show');
+      updateInfo.classList.add('show');
+    } else {
+      // No install prompt yet — show instructions
+      installButton.classList.add('hidden');
+      installInstructions.classList.add('show');
+      updateInfo.classList.remove('show');
+      androidSection.classList.remove('show');
+    }
+    
+    // Always show version badge if we have version info
+    if (manifestVersion) {
+      currentVersion.textContent = manifestVersion;
+      versionBadge.style.display = 'block';
+    }
+  }
+
+  // Listen for beforeinstallprompt event (browser fires it when ready)
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    updateInstallButton();
+  });
+
+  // When PWA is installed, save version and show success
+  window.addEventListener('appinstalled', async () => {
+    manifestVersion = await getManifestVersion();
+    localStorage.setItem(localStorageKey, manifestVersion || 'unknown');
+    deferredPrompt = null;
+    showSuccessState();
+    console.log('PWA installed, version saved:', manifestVersion);
+  });
+
+  // Listen for service worker messages
+  navigator.serviceWorker?.addEventListener('message', event => {
+    if (event.data && event.data.type === 'RELOAD_WINDOW') {
+      window.location.reload();
+    };
+   });
+
+  // On page load, update install button based on current status
+  window.addEventListener('load', () => {
+    updateInstallButton();
+
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(registration => {
+          serviceWorkerRegistration = registration;
+          console.log('ServiceWorker registered with scope:', registration.scope);
+          
+          // Listen for updates
+          registration.addEventListener('updatefound', () => {
+            const newWorker = registration.installing;
+            if (newWorker) {
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // New version is available
+                  updateInstallButton();
+                }
+              });
+            }
+          });
+        })
+        .catch(err => {
+          console.log('ServiceWorker registration failed:', err);
+        });
+    }
+  });
+
+  // Handle service worker updates
+  navigator.serviceWorker?.addEventListener('controllerchange', () => {
+    // Service worker has been updated and is now controlling the page
+    window.location.reload();
+  });
+</script>
+
+</body>
+</html>
