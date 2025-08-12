@@ -420,10 +420,48 @@ body {
     height: 100%;
     border: none;
     transition: transform 0.2s ease;
+    opacity: 1;
 }
 
 .content-card:hover .card-thumbnail iframe {
     transform: scale(1.05);
+}
+
+/* Thumbnail Fallback Placeholder */
+.thumbnail-placeholder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary);
+    font-size: var(--font-size-sm);
+    text-align: center;
+    padding: var(--spacing-md);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 1;
+}
+
+.thumbnail-placeholder.show {
+    opacity: 1;
+}
+
+.thumbnail-placeholder i {
+    font-size: 48px;
+    margin-bottom: var(--spacing-md);
+    color: var(--text-disabled);
+}
+
+.thumbnail-error {
+    font-size: var(--font-size-xs);
+    color: var(--text-disabled);
+    margin-top: var(--spacing-xs);
 }
 
 .card-content {
@@ -486,6 +524,7 @@ body {
     opacity: 0;
     transition: opacity 0.2s ease;
     backdrop-filter: blur(4px);
+    z-index: 2;
 }
 
 .content-card:hover .play-overlay {
@@ -1349,6 +1388,11 @@ function displayContent(items) {
     }
     
     contentGrid.innerHTML = items.map(createContentCard).join('');
+    
+    // Set up thumbnail fallback after cards are created
+    setTimeout(() => {
+        setupThumbnailFallbacks();
+    }, 100);
 }
 
 function createContentCard(item) {
@@ -1361,10 +1405,23 @@ function createContentCard(item) {
         ? `https://vidsrc.xyz/embed/movie?tmdb=${item.id}` 
         : `https://vidsrc.xyz/embed/tv?tmdb=${item.id}&season=1&episode=1`;
     
+    const cardId = `card-${item.id}`;
+    
     return `
         <div class="content-card" onclick="playContent(${item.id}, '${mediaType}', '${escapeHtml(title)}')">
             <div class="card-thumbnail">
-                <iframe src="${embedUrl}" loading="lazy"></iframe>
+                <iframe 
+                    src="${embedUrl}" 
+                    loading="lazy"
+                    data-card-id="${cardId}"
+                    onload="handleThumbnailLoad('${cardId}')"
+                    onerror="handleThumbnailError('${cardId}', 'Failed to load')"
+                ></iframe>
+                <div class="thumbnail-placeholder" id="placeholder-${cardId}">
+                    <i class="fas fa-${mediaType === 'tv' ? 'tv' : 'film'}"></i>
+                    <div>${escapeHtml(title)}</div>
+                    <div class="thumbnail-error" id="error-${cardId}"></div>
+                </div>
                 <div class="play-overlay">
                     <button class="play-btn">▶️ Play Now</button>
                 </div>
@@ -1379,6 +1436,94 @@ function createContentCard(item) {
             </div>
         </div>
     `;
+}
+
+// Thumbnail fallback system
+function setupThumbnailFallbacks() {
+    const iframes = document.querySelectorAll('.card-thumbnail iframe');
+    
+    iframes.forEach(iframe => {
+        const cardId = iframe.dataset.cardId;
+        const placeholder = document.getElementById(`placeholder-${cardId}`);
+        const errorDiv = document.getElementById(`error-${cardId}`);
+        
+        // Set up a timeout to show placeholder if iframe doesn't load within 5 seconds
+        const loadTimeout = setTimeout(() => {
+            if (!iframe.dataset.loaded) {
+                showThumbnailFallback(cardId, 'Temporarily unavailable');
+            }
+        }, 5000);
+        
+        // Store timeout reference for cleanup
+        iframe.dataset.timeout = loadTimeout;
+        
+        // Try to detect if iframe content failed to load
+        iframe.addEventListener('load', () => {
+            clearTimeout(loadTimeout);
+            iframe.dataset.loaded = 'true';
+            
+            // Additional check: try to detect if the iframe contains an error page
+            setTimeout(() => {
+                try {
+                    // This might fail due to CORS, but we can try
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    if (iframeDoc && iframeDoc.title.toLowerCase().includes('error')) {
+                        showThumbnailFallback(cardId, 'Content not available');
+                    }
+                } catch (e) {
+                    // CORS blocked - this is expected for external iframes
+                    // We'll rely on the timeout and other error detection methods
+                }
+            }, 1000);
+        });
+        
+        iframe.addEventListener('error', () => {
+            clearTimeout(loadTimeout);
+            showThumbnailFallback(cardId, 'Failed to load');
+        });
+        
+        // Network error detection (when the request fails entirely)
+        const checkNetworkError = () => {
+            fetch(iframe.src, { mode: 'no-cors', method: 'HEAD' })
+                .catch(() => {
+                    if (!iframe.dataset.loaded) {
+                        clearTimeout(loadTimeout);
+                        showThumbnailFallback(cardId, 'Network error');
+                    }
+                });
+        };
+        
+        // Check after 3 seconds
+        setTimeout(checkNetworkError, 3000);
+    });
+}
+
+function showThumbnailFallback(cardId, errorMessage) {
+    const placeholder = document.getElementById(`placeholder-${cardId}`);
+    const errorDiv = document.getElementById(`error-${cardId}`);
+    const iframe = document.querySelector(`[data-card-id="${cardId}"]`);
+    
+    if (placeholder && errorDiv) {
+        errorDiv.textContent = errorMessage;
+        placeholder.classList.add('show');
+        
+        // Optionally hide the iframe
+        if (iframe) {
+            iframe.style.opacity = '0';
+        }
+    }
+}
+
+function handleThumbnailLoad(cardId) {
+    const iframe = document.querySelector(`[data-card-id="${cardId}"]`);
+    if (iframe && iframe.dataset.timeout) {
+        clearTimeout(parseInt(iframe.dataset.timeout));
+        iframe.dataset.loaded = 'true';
+    }
+}
+
+function handleThumbnailError(cardId, errorMessage) {
+    showThumbnailFallback(cardId, errorMessage);
 }
 
 // Helper functions
